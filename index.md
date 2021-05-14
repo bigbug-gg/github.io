@@ -7,5 +7,5 @@ Rust,Golang,PHP... Good at developing website application.
 ## I want to do
 Develop software that is good for people.
 
-## How can find me
-eMail: bigbug-gg@qq.com
+## Email
+bigbug-gg@qq.com
