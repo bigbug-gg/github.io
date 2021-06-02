@@ -13,7 +13,7 @@
 
 ## Other & 其它
 * The domain `bigbug.site` is intended to be transferred, I already has one the bigbug.me.
-*`bigbug.site` 域名有意转让，可以邮箱联系我。 
+* `bigbug.site` 域名有意转让，可以邮箱联系我。 
 
 ## Email & 邮箱
 * bigbug-gg@qq.com
