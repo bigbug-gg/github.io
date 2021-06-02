@@ -8,7 +8,7 @@
 * 熟悉 Web 全栈开发，喜欢尝试新的技术。
 
 ## ToDo & 目标
-* Develop software that is good for people.
+* **Technology should serve people.**
 * **技术应该服务于人**，未来的日子，以身作则，用技术改变生活体验。
 
 ## Other & 其它
