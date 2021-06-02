@@ -1,7 +1,7 @@
-## bigbug 的博客
-
-* My English is very poor, if you can understand what I say, that means I use a good translation tool.
+## bigbug-gg 的博客
+* From China.If you can understand what I say, that means I use a good translation tool.
 * 在网上以 `bigbug` 作为代号，这个代号已经被人使用，所以在后面添加 `-gg`。
+* 
 
 
 ## skill & 技能
@@ -13,7 +13,9 @@
 * Develop software that is good for people.
 * **技术应该服务于人**，未来的日子，以身作则，用技术改变生活体验。
 
+## Other & 其它
+* The domain `bigbug.site` is intended to be transferred, I already has one the bigbug.me.
+* 我也拥有 `bigbug.site` 域名，并且有意转让，可以邮箱联系我。 
 
 ## Email & 邮箱
-
-> bigbug-gg@qq.com
+* bigbug-gg@qq.com
