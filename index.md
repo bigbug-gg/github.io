@@ -9,6 +9,6 @@
 ## Think
 * **Technology should serve people.**
 * **技术应该服务于人**，用技术改变生活体验。
-* 
+
 ## Email & 邮箱
 * bigbug-gg@qq.com
