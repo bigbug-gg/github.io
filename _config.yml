@@ -1,4 +1,6 @@
+baseurl: bigbug.site
 theme: jekyll-theme-tactile
+timezone: Asia/Chongqing
 ---
 permalink:404.md
 ---
