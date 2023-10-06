@@ -1,0 +1,202 @@
+# Rust 多线程编程|并发设计需要掌握的知识点
+
+### 最简单的多线程基础类型
+
+* static 属于整个程序，不属于单个进程。
+* leaking  box::leak, Box 将永远存在，没有所有者，只要程序运行，任何线程都可以借用它。
+* reference counted 引用计数 Rc ，仅限于单个线程中，如果涉及多个线程，则需要使用多线程版本的 Arc。
+
+语言本身提供的借用规则，引用（借用），可变应用，能保证单线程数据安全，但当多线程场景，它们就完全失去了作用；
+
+
+> Tip: 有一个逃生口，就是 内部可变性（interior mutability）。
+
+
+### 内部可变类型
+
+约定
+
+引用称为 `不可变(immutable)` 或 `可变(mutable)` 对于并发程序描述会变得混乱和不准确，
+
+更准确的术语是 `共享(shared)` 和 `独占(exclusive)` 
+
+记住两个约定名词：
+
+1. 独占 &mut T 保证它是 T 的唯一独占借用
+2. 共享 &T 可以复制并与他人共享
+
+---
+
+## 标准库提供的内部可变类型
+
+### UnsafeCell
+ 
+它是内部可变性的原始构建块，很少直接使用，而是包装在另一种通过有限接口提供安全性的类型中；
+ 
+下面的 Cell 、 Mutex,所有具有内部可变性的类型,都建立在 UnsafeCell 之上。
+
+它的 get() 方法只是提供一个指向它包装的值的原始指针，它只能在 unsafe 块中有意义地使用。
+
+### Cell
+
+ `std::cell::Cell<T>` 简单地包装了 `T` ，但允许通过共享引用进行更改; **只能在单线程内使用**, 它将值复制出来（如果 T 为 Copy ），或将其整体替换为另一个值。
+
+ 
+ ### RefCell
+
+ RefCell<T> 不仅包含 T ，而且还包含一个计数器，用于跟踪任何未完成的借用。
+
+
+> Tip: Cell 和 RefCell 只适合单进程。
+
+## 可多线程内部可变
+
+### RwLock
+它是 RefCell 的并发版本，它会阻塞当前线程——使其进入睡眠状态,同时等待冲突借用消失;
+
+在其他线程处理完数据后，我们只需要耐心等待轮到我们处理数据；
+
+它带有两种守卫类型，一种用于读，一种用于写： RwLockReadGuard 和 RwLockWriteGuard ；
+
+`RwLockReadGuard` 仅实现 Deref ，使其表现得像对受保护数据的共享引用；
+
+而 `RwLockWriteGuard` 后者还实现 DerefMut ，表现得像独占引用。
+
+### Mutex
+与 RwLock 很相似，但只允许独占借用。
+
+它的 `lock()` 方法返回一个称为 `MutexGuard` 的特殊类型。这个守卫代表我们已经锁定互斥锁的保证。
+
+`MutexGuard` 的行为类似于通过 `DerefMut` 特征的独占引用，使我们能够独占访问互斥锁保护的数据。
+```rust
+use std::sync::Mutex;
+
+fn main() {
+    let n = Mutex::new(0);
+    thread::scope(|s| {
+        for _ in 0..10 {
+            s.spawn(|| {
+                // 得到 MutexGuard
+                let mut guard = n.lock().unwrap();
+                for _ in 0..100 {
+                    *guard += 1;
+                }
+            });
+        } // 循环结束，自动解锁 MutexGuard
+    });
+    assert_eq!(n.into_inner().unwrap(), 1000);
+}
+
+```
+
+### Atomics
+
+原子类型表示 Cell 的并发版本， 它们通过让我们把值作为一个整体复制进去，而不是让我们直接借用内容来避免未定义行为；
+
+与 Cell 不同的是，它们不能是任意大小；
+
+任何 T 都没有通用的 Atomic<T> 类型，只有 AtomicU32 和 AtomicPtr<T> 等 特定的原子类型。
+
+哪些可用取决于平台，因为它们需要处理器的支持以避免数据竞争。
+
+
+### 原子类型
+
+先要知道 Rust 使用的是 `Send` 和`Sync` 特征来判断是否能够安全的跨线程：
+* Send 所有权可以转移到另一个线程。
+* Sync 可以与另一个线程共享。
+
+> Tip: 所有原始类型都默认实现了 Send 和 Sync （i32 、bool 和 str 等）
+
+两个特征都是自动特征，字段全为 `Send` 和 `Sync` 的 struct 本身也是 `Send` 和 `Sync`。
+
+> Tip: 原始指针`*const T` 和 `*mut T` 既不是 Send 也不是 Sync
+
+不想实现 `Send` 和 `Sync`特征， 给类型加一个未实现该特征的类型即可，这里提供了：
+
+```rust
+// 行时实际上并不存在。它是零大小的类型，不占用空间 
+std::marker::PhantomData<T>
+struct X {
+    handle: i32,
+    _not_sync: PhantomData<Cell<()>>,
+}
+```
+
+
+## 等待： 停放和条件变量
+
+### 线程停放(Thread Praking)
+
+线程停放可通过 std::thread::park() 函数获得。
+
+> Tip: 等待来自另一个线程的通知的一种方法称为线程停放(Thread parking)。线程可以自行停放(park)，使其进入睡眠状态，从而停止消耗任何 CPU 周期。然后另一个线程可以取消停放的线程，将其从睡眠中唤醒。
+
+```rust
+
+fn main() {
+    let queue = Mutex::new(VecDeque::new());
+
+    thread::scope(|s| {
+
+        // 消费线程
+        let t = s.spawn(|| loop {
+            let item = queue.lock().unwrap().pop_front();
+            if let Some(item) = item {
+                dbg!(item); // 有数据则消费
+            } else {
+                thread::park(); // 无则停放
+            }
+        });
+
+        // 生产线程
+        for i in 0.. {
+            queue.lock().unwrap().push_back(i);
+            t.thread().unpark(); // 取消停放
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+}
+```
+
+### 条件变量 Condvar
+
+
+有两个基本操作：等待 和 通知。
+
+```rust
+
+use std::sync::Condvar;
+
+let queue = Mutex::new(VecDeque::new());
+let not_empty = Condvar::new();
+
+thread::scope(|s| {
+    s.spawn(|| {
+        loop {
+            let mut q = queue.lock().unwrap();
+            let item = loop {
+                if let Some(item) = q.pop_front() {
+                    break item;
+                } else {
+                    q = not_empty.wait(q).unwrap();
+                }
+            };
+            drop(q);
+            dbg!(item);
+        }
+    });
+
+    for i in 0.. {
+        queue.lock().unwrap().push_back(i);
+        not_empty.notify_one();
+        thread::sleep(Duration::from_secs(1));
+    }
+});
+```
+
+## 说明
+
+本文章内容为 学习《Rust原子和锁》 笔记，[Rust原子和锁](https://atomics.rs/basics.html);
+
+需要有一定的Rust实践经验的同学才能很好的理解其中的内容，不建议初学者阅读。
